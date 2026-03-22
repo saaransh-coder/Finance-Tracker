@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Dragon Genetic Laboratory - v4.5.2</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .trait-card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; transition: transform 0.2s; }
+        button:disabled { background-color: #cbd5e1 !important; cursor: not-allowed; }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen p-4">
+    <div class="max-w-6xl mx-auto">
+        <header class="mb-4 border-b pb-4">
+            <h1 class="text-3xl font-black text-slate-900">Dragon Breeding Simulation</h1>
+            <p class="text-slate-500 italic">M'KIS G10 Science Research - v4.5.2-SECURE</p>
+        </header>
+
+        <div class="bg-white rounded-2xl shadow-sm border p-6 mb-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-2">Parent A Signature</label>
+                    <input type="text" id="p1" value="1278359214" maxlength="10" class="w-full text-2xl font-mono p-4 bg-slate-50 border rounded-xl outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-2">Parent B Signature</label>
+                    <input type="text" id="p2" value="8492657386" maxlength="10" class="w-full text-2xl font-mono p-4 bg-slate-50 border rounded-xl outline-none">
+                </div>
+            </div>
+            <button id="breed" class="mt-6 w-full bg-slate-900 hover:bg-black text-white font-bold py-4 rounded-xl transition-all shadow-lg active:scale-[0.98]">
+                GENERATE OFFSPRING CLUTCH
+            </button>
+        </div>
+        <div id="clutch" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"></div>
+    </div>
+
+    <script>
+    const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+    const rand3 = () => pick([1, 2, 3]);
+    const rand6 = () => pick([4, 5, 6]);
+    const rand7890 = (isFirst) => isFirst ? pick([7, 8, 9]) : pick([7, 8, 9, 0]);
+
+    function randn_bm() {
+        let u = 0, v = 0;
+        while(u === 0) u = Math.random();
+        while(v === 0) v = Math.random();
+        return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+    }
+
+    const TRAIT_RULES = [
+        { name: "Breath Weapon", getAlleles: (v) => (v >= 1 && v <= 3 ? ['F', 'F'] : (v >= 4 && v <= 6 ? ['i', 'i'] : ['F', 'i'])), getPhenotype: (a) => a.includes('F') ? "🔥 Fire Breath" : "❄️ Ice Breath", getOffspringValue: (a, idx) => { const p = a.sort().join(''); return p==='FF' ? rand3() : (p==='ii' ? rand6() : pick([7, 8, 9])); } },
+        { name: "Armature", getAlleles: (v) => (v <= 3 ? ['H', 'H'] : (v <= 6 ? ['l', 'l'] : ['H', 'l'])), getPhenotype: (a) => { const p = a.sort().join(''); if(p==='HH') return "🛡️ Heavy Armor"; if(p==='ll') return "☁️ Velvety Armor"; return "🧥 Standard Armor"; }, getOffspringValue: (a) => { const p = a.sort().join(''); return p==='HH'?rand3() : (p==='ll'?rand6() : rand7890(false)); } },
+        { name: "Tail Weaponry", getAlleles: (v) => { if (v == 1 || v == 2) return ['T', 'T']; if (v == 3 || v == 4) return ['C', 'C']; if (v == 5 || v == 6) return ['n', 'n']; if (v == 7) return ['T', 'C']; if (v == 8) return ['T', 'n']; if (v == 9) return ['C', 'n']; return ['n', 'n']; }, getPhenotype: (a) => { const p = a.sort().join(''); if (p === 'CT') return "⚒️ Thago-Club Hybrid"; if (p.includes('T')) return "⚔️ Thagomizer"; if (p.includes('C')) return "🔨 Club Tail"; return "🚫 No Tail Weapon"; }, getOffspringValue: (a) => { const p = a.sort().join(''); if (p === 'TT') return pick([1, 2]); if (p === 'CC') return pick([3, 4]); if (p === 'nn') return pick([5, 6]); if (p === 'CT') return 7; if (p === 'Tn') return 8; if (p === 'Cn') return 9; return 5; } },
+        { name: "Fore Appendages", getAlleles: (v) => (v <= 3 ? ['L', 'L'] : (v <= 6 ? ['W', 'W'] : ['L', 'W'])), getPhenotype: (a) => { const p = a.sort().join(''); if(p==='LW') return "🦅 Forelegs + Wings"; if(p==='LL') return "🦖 Forelegs Only"; return "👐 Wings Only"; }, getOffspringValue: (a) => { const p = a.sort().join(''); return p==='LL'?rand3() : (p==='WW'?rand6() : rand7890(false)); } },
+        { name: "Rear Legs", getAlleles: (v) => (v <= 3 ? ['R', 'R'] : (v <= 6 ? ['n', 'n'] : ['R', 'n'])), getPhenotype: (a) => a.includes('R') ? "🦵 Rear Legs Present" : "🐍 No Rear Legs", getOffspringValue: (a) => { const p = a.sort().join(''); return p==='RR'?rand3() : (p==='nn'?rand6() : rand7890(false)); } },
+        { name: "Adult Size", getAlleles: (v) => [v, v], getPhenotype: function(a, parents) { const sizeFromDigit = (d) => 17 * Math.pow(1.5, d - 5); const s1 = sizeFromDigit(parents[0]); const s2 = sizeFromDigit(parents[1]); const mean = (s1 + s2) / 2; const diff = Math.abs(s1 - s2); const finalSD = Math.log10(mean) * (0.1 * diff + 1); let offspringSize = (randn_bm() * finalSD) + mean; const finalSize = Math.max(0.1, offspringSize); let rawDigit = Math.log(finalSize / 17) / Math.log(1.5) + 5; this.nextDigit = Math.max(0, Math.min(9, Math.round(rawDigit))); return `📏 ${finalSize.toFixed(1)} Meters`; }, getOffspringValue: function(a) { return this.nextDigit !== undefined ? this.nextDigit : 5; } },
+        { name: "Temperament", getAlleles: (v) => (v <= 3 ? ['S', 'S'] : (v <= 6 ? ['C', 'C'] : ['S', 'C'])), getPhenotype: (a) => { const p = a.sort().join(''); if(p==='SS') return "😠 Aggressive/Solitary"; if(p==='CC') return "🤝 Social/Cooperative"; return "😐 Neutral/Wary"; }, getOffspringValue: (a) => { const p = a.sort().join(''); return p==='SS'?rand3() : (p==='CC'?rand6() : rand7890(false)); } },
+        { name: "Scale Color", getAlleles: (v) => (v >= 1 && v <= 3 ? ['R', 'R'] : (v >= 4 && v <= 6 ? ['b', 'b'] : ['R', 'b'])), getPhenotype: (a) => { const p = a.sort().join(''); if(p === 'RR') return "🔴 Dark Red Scales"; if(p === 'bb') return "🔵 Blue Scales"; return "🟣 Purple Scales"; }, getOffspringValue: (a, idx) => { const p = a.sort().join(''); return p==='RR' ? rand3() : (p==='bb' ? rand6() : rand7890(idx === 0)); } },
+        { name: "Back Features", getAlleles: (v) => (v <= 3 ? ['F', 'F'] : (v <= 6 ? ['B', 'B'] : ['F', 'B'])), getPhenotype: (a) => { const p = a.sort().join(''); if(p==='FB') return "🪶🦔 Feathers & Bristles"; if(p==='FF') return "🪶 Feathered Trim"; return "🦔 Stiff Bristles"; }, getOffspringValue: (a) => { const p = a.sort().join(''); return p==='FF'?rand3() : (p==='BB'?rand6() : rand7890(false)); } },
+        { 
+    name: "Camouflage Capability", 
+    getAlleles: (v) => (v >= 1 && v <= 3 ? ['A', 'A'] : (v >= 4 && v <= 6 ? ['f', 'f'] : ['A', 'f'])), 
+    getPhenotype: (a, parents, inherited, fullGenotype) => {
+        // We look at the scale color result to determine the 'Fixed' state
+        const isActiveCamo = a.includes('A');
+        if (isActiveCamo) return "🌈 Active Camouflage";
+        
+        // If fixed, we need to know what color is being 'fixed'
+        return "🕶️ Fixed Pigment (Matches Scale Color)";
+    }, 
+    getOffspringValue: (a) => { 
+        const p = a.sort().join(''); 
+        return p === 'AA' ? rand3() : (p === 'ff' ? rand6() : rand7890(false)); 
+    } 
+}
+    ];
+
+    let countdownInterval;
+
+    function breed() {
+        const btn = document.getElementById('breed');
+        const p1 = document.getElementById('p1');
+        const p2 = document.getElementById('p2');
+        const clutchElement = document.getElementById('clutch');
+        if (!/^\d{10}$/.test(p1.value) || !/^\d{10}$/.test(p2.value)) { alert("Enter 10-digit IDs."); return; }
+        btn.disabled = true; clutchElement.innerHTML = ''; clearInterval(countdownInterval);
+        let prepTime = 5;
+        clutchElement.innerHTML = `<div class="col-span-full text-center py-10 bg-slate-900 text-white rounded-2xl border-4 border-yellow-500 animate-pulse"><h2 class="text-2xl font-black mb-2">PREPARING SAMPLES</h2><div class="text-6xl font-mono font-black" id="prep-countdown">${prepTime}</div></div>`;
+        const prepInterval = setInterval(() => {
+            prepTime--; document.getElementById('prep-countdown').innerText = prepTime;
+            if (prepTime <= 0) { clearInterval(prepInterval); revealClutch(p1.value, p2.value); }
+        }, 1000);
+    }
+
+    function revealClutch(val1, val2) {
+        const btn = document.getElementById('breed');
+        const clutchElement = document.getElementById('clutch');
+        const s1 = val1.split('').map(Number); const s2 = val2.split('').map(Number);
+        clutchElement.innerHTML = '';
+        for (let i = 0; i < 8; i++) {
+            let childIDParts = []; let traitsHtml = "";
+            TRAIT_RULES.forEach((rule, idx) => {
+                const inherited = [rule.getAlleles(s1[idx])[pick([0,1])], rule.getAlleles(s2[idx])[pick([0,1])]];
+                const phenotype = rule.getPhenotype(inherited, [s1[idx], s2[idx]]);
+                childIDParts.push(rule.getOffspringValue(inherited, idx));
+                traitsHtml += `<div class="py-1 border-b border-slate-100 last:border-0"><div class="text-[8px] text-slate-400 font-bold uppercase">${rule.name}</div><div class="text-[11px] font-bold text-slate-800">${phenotype}</div></div>`;
+            });
+            const div = document.createElement('div');
+            div.className = "trait-card p-4 border-t-4 border-t-slate-800 shadow-md bg-white";
+            div.innerHTML = `<div class="mb-2 bg-slate-50 p-2 rounded-lg border border-slate-100"><div class="text-[8px] font-black text-slate-400 uppercase">Genomic Signature</div><div class="text-xs font-mono font-bold text-blue-600 tracking-widest">${childIDParts.join('')}</div></div><div>${traitsHtml}</div>`;
+            clutchElement.appendChild(div);
+        }
+        let timeLeft = 60;
+        countdownInterval = setInterval(() => {
+            timeLeft--; btn.innerText = `STABLE: ${timeLeft}s`;
+            if (timeLeft <= 0) { clearInterval(countdownInterval); clutchElement.innerHTML = '<div class="col-span-full text-center py-20 text-slate-300 font-bold border-2 border-dashed rounded-2xl">SAMPLE DEGRADED.</div>'; btn.disabled = false; btn.innerText = "GENERATE OFFSPRING CLUTCH"; }
+        }, 1000);
+    }
+    document.getElementById('breed').addEventListener('click', breed);
+    </script>
+</body>
+</html>
